@@ -199,9 +199,9 @@ public class Team8 extends AbstractNegotiationParty {
     public void receiveMessage(AgentID sender, Action action) {
         if (action instanceof Offer) {
             lastOffer = ((Offer) action).getBid();
-        }
+            this.instances.add(new Logistic.Instance(1, oneHotEncoder(lastOffer)));
 
-        this.instances.add(new Logistic.Instance(1, oneHotEncoder(lastOffer)));
+        }
     }
 
     /*
