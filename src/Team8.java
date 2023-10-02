@@ -151,6 +151,9 @@ public class Team8 extends AbstractNegotiationParty {
             System.out.println("Social score: " + socialScore + " Individual score: " + individualScore);
             System.out.println("Opponent prob: " + opponentProb);
         }
+        if  (opponentProb >= getUtility(bid)) {
+            return 0;
+        }
 
         return beta * socialScore + (1 - beta) * individualScore;
     }
@@ -194,7 +197,7 @@ public class Team8 extends AbstractNegotiationParty {
             System.out.println("-------------------------------------");
             System.out.println("Best bid: " + findBestBid());
             double bestBidScore = getBidScore(findBestBid(), true);
-            if (lastBidScore >= bestBidScore && getUtility(lastOffer) >= utilitySpace.getReservationValue()) {
+            if (lastBidScore >= bestBidScore && getUtilityWithDiscount(lastOffer) >= utilitySpace.getReservationValue()) {
                 return new Accept(getPartyId(), lastOffer);
             }
         }
