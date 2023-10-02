@@ -36,7 +36,7 @@ class Logistic {
     private int ITERATIONS = 600;
 
     public Logistic(int n) {
-        this.rate = 0.0005;
+        this.rate = 0.001;
         weights = new double[n];
         // initialize weights to random negative values
         for (int i = 0; i < weights.length; i++) {
@@ -138,7 +138,7 @@ public class Team8 extends AbstractNegotiationParty {
     // Utility Threshold is the utility we get by not accepting
     // at any point. This is possible since we k=now the random
     // agent stops after 90% of the deadline passes.
-    
+    private int numRounds = 0;
     // private HashMap<Bid, Integer> proposedBids = new HashMap<>();
 
     private Logistic logReg;
@@ -208,7 +208,7 @@ public class Team8 extends AbstractNegotiationParty {
         for (BidDetails bidDetails : outcomeSpace.getAllOutcomes()) {
             Bid bid = bidDetails.getBid();
             double utility = getUtility(bid);
-            if (utility < reservationValue) {
+           if (utility < reservationValue) {
                 continue;
             }
             double score = getBidScore(bid);
@@ -233,7 +233,12 @@ public class Team8 extends AbstractNegotiationParty {
             System.out.println("Last offer score: " + getBidScore(lastOffer));
             System.out.println("Best bid: " + findBestBid());
             System.out.println("Best bid score: " + getBidScore(findBestBid()));
-            if (getBidScore(lastOffer) >= getBidScore(findBestBid()) && getUtility(lastOffer) > utilitySpace.getReservationValue() ) {
+            
+            // Need to check if 40 % of the rounds have elapsed.
+            // If not, we do not accept the bid.
+            
+            
+            if ( getBidScore(lastOffer) >= getBidScore(findBestBid()) && getUtility(lastOffer) > utilitySpace.getReservationValue() ) {
                 return new Accept(getPartyId(), lastOffer);
                 // If the opponent proposes a bid that
                 // is greater than what we are eventually going to get,
@@ -259,6 +264,7 @@ public class Team8 extends AbstractNegotiationParty {
     @Override
     public void receiveMessage(AgentID sender, Action action) {
         if (action instanceof Offer) {
+            this.numRounds += 1;
             lastOffer = ((Offer) action).getBid();
             this.instances.add(new Logistic.Instance(1, oneHotEncoder(lastOffer)));
         }
