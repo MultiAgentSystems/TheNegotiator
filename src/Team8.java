@@ -33,10 +33,10 @@ class Logistic {
     /**
      * the number of iterations
      */
-    private int ITERATIONS = 500;
+    private int ITERATIONS = 600;
 
     public Logistic(int n) {
-        this.rate = 0.001;
+        this.rate = 0.0005;
         weights = new double[n];
         // initialize weights to random negative values
         for (int i = 0; i < weights.length; i++) {
@@ -138,6 +138,8 @@ public class Team8 extends AbstractNegotiationParty {
     // Utility Threshold is the utility we get by not accepting
     // at any point. This is possible since we k=now the random
     // agent stops after 90% of the deadline passes.
+    
+    private List<Bid> proposedBids = new ArrayList<Bid>();
 
     private Logistic logReg;
 
@@ -180,13 +182,13 @@ public class Team8 extends AbstractNegotiationParty {
      * TODO: Update individualUtilThreshold over rounds
      */
     public double getBidScore(Bid bid) {
-        double beta = 0.1;
+        double beta = 0.6;
 
         // social score is our utility of the bid + square of probability of opponent acceptance (as per logreg)
         double opponentProb = this.logReg.classify(oneHotEncoder(bid));
-        double socialScore = (getUtility(bid) + Math.pow(opponentProb, 2)) / 2;
+        double socialScore = (getUtilityWithDiscount(bid) + Math.pow(opponentProb,2) )/ 2;
 
-        double individualScore = (getUtilityWithDiscount(bid) < individualUtilThreshold) ? 0 : opponentProb;
+        double individualScore = (getUtilityWithDiscount(bid) < individualUtilThreshold) ? 0 : getUtilityWithDiscount(bid);
 
         return beta * socialScore + (1 - beta) * individualScore;
     }
@@ -244,7 +246,10 @@ public class Team8 extends AbstractNegotiationParty {
 
         instances.add(new Logistic.Instance(0, oneHotEncoder(findBestBid())));
         individualUtilThreshold = Math.max(individualUtilThreshold - individualUtilThresholdDelta, utilitySpace.getReservationValue());
-        return new Offer(getPartyId(), findBestBid());
+        Bid ourBestBid = findBestBid();
+        proposedBids.add(ourBestBid);
+
+        return new Offer(getPartyId(), ourBestBid);
     }
     
     /*
