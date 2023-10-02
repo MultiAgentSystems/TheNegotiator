@@ -145,6 +145,8 @@ public class Team8 extends AbstractNegotiationParty
         utilityThreshold = utilityThreshold * getUtility(constantBid);
         // Now utility threshold contains the minimum bid our agent gets
         // as long as there isn't any disagreement.
+
+        this.oneHotEncoder();
     }
 
     /*
@@ -185,14 +187,17 @@ public class Team8 extends AbstractNegotiationParty
     @Override
     public String getDescription()
     {
-        this.oneHotEncoder();
         return "Refusing to elaborate further.";
     }
 
     public void oneHotEncoder( ){
         List<Issue> allIssues = utilitySpace.getDomain().getIssues();
+        System.out.println("Got Issue Array Length :");
+        System.out.println(allIssues);
         for ( Issue issue : allIssues ){
             ArrayList<Objective> allChildren = issue.getChildren();
+            System.out.println("Children of length :");
+            System.out.println(allChildren);
             for ( Objective ob : allChildren ){
                 System.out.println(ob.getName());
             }
