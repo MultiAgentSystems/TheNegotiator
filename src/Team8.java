@@ -14,7 +14,8 @@ import genius.core.actions.Offer;
 import genius.core.parties.AbstractNegotiationParty;
 import genius.core.parties.NegotiationInfo;
 import genius.core.boaframework.SortedOutcomeSpace;
-
+import genius.core.issue.Issue;
+import genius.core.issue.Objective;
 
 class Logistic {
 
@@ -99,8 +100,6 @@ class Logistic {
         }
         return dataset;
     }
-
-
     public static void main(String... args) throws FileNotFoundException {
         List<Instance> instances = readDataSet("dataset.txt");
         Logistic logistic = new Logistic(5);
@@ -186,7 +185,17 @@ public class Team8 extends AbstractNegotiationParty
     @Override
     public String getDescription()
     {
+        this.oneHotEncoder();
         return "Refusing to elaborate further.";
     }
 
+    public void oneHotEncoder( ){
+        List<Issue> allIssues = utilitySpace.getDomain().getIssues();
+        for ( Issue issue : allIssues ){
+            ArrayList<Objective> allChildren = issue.getChildren();
+            for ( Objective ob : allChildren ){
+                System.out.println(ob.getName());
+            }
+        }
+    }
 }
