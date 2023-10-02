@@ -139,7 +139,7 @@ public class Team8 extends AbstractNegotiationParty {
     // at any point. This is possible since we k=now the random
     // agent stops after 90% of the deadline passes.
     
-    private List<Bid> proposedBids = new ArrayList<Bid>();
+    // private HashMap<Bid, Integer> proposedBids = new HashMap<>();
 
     private Logistic logReg;
 
@@ -162,7 +162,7 @@ public class Team8 extends AbstractNegotiationParty {
         double expectedRun = 0.9 * totalRun;
         
         reservationValue = info.getUtilitySpace().getReservationValueUndiscounted();
-//        individualUtilThresholdDelta = (1 - reservationValue * info.getUtilitySpace().getDiscountFactor());
+        individualUtilThresholdDelta = (1 - reservationValue * info.getUtilitySpace().getDiscountFactor())/60;
         // Now utility threshold contains the minimum bid our agent gets
         // as long as there isn't any disagreement.
 
@@ -189,7 +189,10 @@ public class Team8 extends AbstractNegotiationParty {
         double socialScore = (getUtilityWithDiscount(bid) + Math.pow(opponentProb,2) )/ 2;
 
         double individualScore = (getUtilityWithDiscount(bid) < individualUtilThreshold) ? 0 : getUtilityWithDiscount(bid);
-
+        
+        if ( opponentProb >= getUtility(bid) ) {
+            return 0;
+        }
         return beta * socialScore + (1 - beta) * individualScore;
     }
     
@@ -230,7 +233,7 @@ public class Team8 extends AbstractNegotiationParty {
             System.out.println("Last offer score: " + getBidScore(lastOffer));
             System.out.println("Best bid: " + findBestBid());
             System.out.println("Best bid score: " + getBidScore(findBestBid()));
-            if (getBidScore(lastOffer) >= getBidScore(findBestBid())) {
+            if (getBidScore(lastOffer) >= getBidScore(findBestBid()) && getUtility(lastOffer) > utilitySpace.getReservationValue() ) {
                 return new Accept(getPartyId(), lastOffer);
                 // If the opponent proposes a bid that
                 // is greater than what we are eventually going to get,
@@ -247,8 +250,6 @@ public class Team8 extends AbstractNegotiationParty {
         instances.add(new Logistic.Instance(0, oneHotEncoder(findBestBid())));
         individualUtilThreshold = Math.max(individualUtilThreshold - individualUtilThresholdDelta, utilitySpace.getReservationValue());
         Bid ourBestBid = findBestBid();
-        proposedBids.add(ourBestBid);
-
         return new Offer(getPartyId(), ourBestBid);
     }
     
