@@ -40,7 +40,7 @@ class Logistic {
         weights = new double[n];
         // initialize weights to random negative values
         for (int i = 0; i < weights.length; i++) {
-            weights[i] = Math.random() * -10;
+            weights[i] = Math.random() * -1;
         }
     }
 
@@ -82,48 +82,6 @@ class Logistic {
             this.x = x;
         }
     }
-
-    public static List<Instance> readDataSet(String file) throws FileNotFoundException {
-        List<Instance> dataset = new ArrayList<Instance>();
-        Scanner scanner = null;
-        try {
-            scanner = new Scanner(new File(file));
-            while (scanner.hasNextLine()) {
-                String line = scanner.nextLine();
-                if (line.startsWith("#")) {
-                    continue;
-                }
-                String[] columns = line.split("\\s+");
-
-                // skip first column and last column is the label
-                int i = 1;
-                int[] data = new int[columns.length - 2];
-                for (i = 1; i < columns.length - 1; i++) {
-                    data[i - 1] = Integer.parseInt(columns[i]);
-                }
-                int label = Integer.parseInt(columns[i]);
-                Instance instance = new Instance(label, data);
-                dataset.add(instance);
-            }
-        } finally {
-            if (scanner != null)
-                scanner.close();
-        }
-        return dataset;
-    }
-
-    public static void main(String... args) throws FileNotFoundException {
-        List<Instance> instances = readDataSet("dataset.txt");
-        Logistic logistic = new Logistic(5);
-        logistic.train(instances);
-        int[] x = {2, 1, 1, 0, 1};
-        System.out.println("prob(1|x) = " + logistic.classify(x));
-
-        int[] x2 = {1, 0, 1, 0, 0};
-        System.out.println("prob(1|x2) = " + logistic.classify(x2));
-
-    }
-
 }
 
 public class Team8 extends AbstractNegotiationParty {
@@ -158,9 +116,9 @@ public class Team8 extends AbstractNegotiationParty {
 
         double totalRun = info.getDeadline().getValue();
         double expectedRun = 0.9 * totalRun;
-        
+
         reservationValue = info.getUtilitySpace().getReservationValueUndiscounted();
-//        individualUtilThresholdDelta = (1 - reservationValue * info.getUtilitySpace().getDiscountFactor());
+        individualUtilThresholdDelta = (1 - reservationValue * info.getUtilitySpace().getDiscountFactor()) / 60;
         // Now utility threshold contains the minimum bid our agent gets
         // as long as there isn't any disagreement.
 
@@ -179,18 +137,24 @@ public class Team8 extends AbstractNegotiationParty {
      * beta * social_score(bid) + (1 - beta) * individual_score(bid)
      * TODO: Update individualUtilThreshold over rounds
      */
-    public double getBidScore(Bid bid) {
-        double beta = 0.1;
+    public double getBidScore(Bid bid, boolean verbose) {
+        double beta = 0.5;
 
         // social score is our utility of the bid + square of probability of opponent acceptance (as per logreg)
         double opponentProb = this.logReg.classify(oneHotEncoder(bid));
-        double socialScore = (getUtility(bid) + Math.pow(opponentProb, 2)) / 2;
+        double ourDiscountedUtil = getUtilityWithDiscount(bid);
+        double socialScore = (ourDiscountedUtil + Math.pow(opponentProb, 2)) / 2;
 
-        double individualScore = (getUtilityWithDiscount(bid) < individualUtilThreshold) ? 0 : opponentProb;
+        double individualScore = (ourDiscountedUtil < individualUtilThreshold) ? 0 : opponentProb;
+        if (verbose) {
+            System.out.println("Bid: " + bid);
+            System.out.println("Social score: " + socialScore + " Individual score: " + individualScore);
+            System.out.println("Opponent prob: " + opponentProb);
+        }
 
         return beta * socialScore + (1 - beta) * individualScore;
     }
-    
+
     /*
      * Iterate through all bids with utility higher than the reservation value
      * and return the one with the highest score using our scoring function and.
@@ -206,7 +170,7 @@ public class Team8 extends AbstractNegotiationParty {
             if (utility < reservationValue) {
                 continue;
             }
-            double score = getBidScore(bid);
+            double score = getBidScore(bid, false);
             if (score > bestScore) {
                 bestBid = bid;
                 bestScore = score;
@@ -224,15 +188,14 @@ public class Team8 extends AbstractNegotiationParty {
     @Override
     public Action chooseAction(List<Class<? extends Action>> possibleActions) {
         if (lastOffer != null) {
+            System.out.println("-------------------------------------");
             System.out.println("Last offer: " + lastOffer);
-            System.out.println("Last offer score: " + getBidScore(lastOffer));
+            double lastBidScore = getBidScore(lastOffer, true);
+            System.out.println("-------------------------------------");
             System.out.println("Best bid: " + findBestBid());
-            System.out.println("Best bid score: " + getBidScore(findBestBid()));
-            if (getBidScore(lastOffer) >= getBidScore(findBestBid())) {
+            double bestBidScore = getBidScore(findBestBid(), true);
+            if (lastBidScore >= bestBidScore && getUtility(lastOffer) >= utilitySpace.getReservationValue()) {
                 return new Accept(getPartyId(), lastOffer);
-                // If the opponent proposes a bid that
-                // is greater than what we are eventually going to get,
-                // we accept.
             }
         }
 
@@ -246,7 +209,7 @@ public class Team8 extends AbstractNegotiationParty {
         individualUtilThreshold = Math.max(individualUtilThreshold - individualUtilThresholdDelta, utilitySpace.getReservationValue());
         return new Offer(getPartyId(), findBestBid());
     }
-    
+
     /*
      * Stores the received bid in a variable
      * */
