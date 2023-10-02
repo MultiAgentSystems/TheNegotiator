@@ -11,11 +11,10 @@ import genius.core.Bid;
 import genius.core.actions.Accept;
 import genius.core.actions.Action;
 import genius.core.actions.Offer;
+import genius.core.issue.*;
 import genius.core.parties.AbstractNegotiationParty;
 import genius.core.parties.NegotiationInfo;
 import genius.core.boaframework.SortedOutcomeSpace;
-import genius.core.issue.Issue;
-import genius.core.issue.Objective;
 
 class Logistic {
 
@@ -194,12 +193,11 @@ public class Team8 extends AbstractNegotiationParty
         List<Issue> allIssues = utilitySpace.getDomain().getIssues();
         System.out.println("Got Issue Array Length :");
         System.out.println(allIssues);
+
         for ( Issue issue : allIssues ){
-            ArrayList<Objective> allChildren = issue.getChildren();
-            System.out.println("Children of length :");
-            System.out.println(allChildren);
-            for ( Objective ob : allChildren ){
-                System.out.println(ob.getName());
+            IssueDiscrete dIssue = (IssueDiscrete) issue;
+            for (ValueDiscrete val : dIssue.getValues() ) {
+                System.out.println(dIssue.getValueIndex(val));
             }
         }
     }
