@@ -141,12 +141,15 @@ public class Team8 extends AbstractNegotiationParty {
     private int numRounds = 0;
     // private HashMap<Bid, Integer> proposedBids = new HashMap<>();
 
-    private Logistic logReg;
+    // --List of regressions, one corresponding to each of the opponent.
+//    private Logistic logReg;
+    // --A map from all the possible agents (Agent IDs) to the index in the Logistic class.
+    private HashMap<AgentID, Logistic> OpponentMaps = new HashMap<>();
 
-    private List<Logistic.Instance> instances = new ArrayList<Logistic.Instance>();
-
+    private HashMap<AgentID, List<Logistic.Instance>> OpponentInstances = new HashMap<>();
     private double individualUtilThreshold = 1, individualUtilThresholdDelta = 0.02;
 
+    private Bid lastBidOnTable = null;
     int totalValues = 0;
 
     @Override
@@ -173,7 +176,7 @@ public class Team8 extends AbstractNegotiationParty {
             totalValues += issue.getNumberOfValues();
         }
 
-        logReg = new Logistic(totalValues);
+//        logReg = new Logistic(totalValues);
     }
 
     /*
@@ -185,15 +188,35 @@ public class Team8 extends AbstractNegotiationParty {
         double beta = 0.6;
 
         // social score is our utility of the bid + square of probability of opponent acceptance (as per logreg)
-        double opponentProb = this.logReg.classify(oneHotEncoder(bid));
-        double socialScore = (getUtilityWithDiscount(bid) + Math.pow(opponentProb,2) )/ 2;
+//        double opponentProb = this.logReg.classify(oneHotEncoder(bid));
+//        double socialScore = (getUtilityWithDiscount(bid) + Math.pow(opponentProb,2) )/ 2;
+//
+//        double individualScore = (getUtilityWithDiscount(bid) < individualUtilThreshold) ? 0 : getUtilityWithDiscount(bid);
+//
+//        if ( opponentProb >= getUtility(bid) ) {
+//            return 0;
+//        }
+//        return beta * socialScore + (1 - beta) * individualScore;
 
-        double individualScore = (getUtilityWithDiscount(bid) < individualUtilThreshold) ? 0 : getUtilityWithDiscount(bid);
-        
-        if ( opponentProb >= getUtility(bid) ) {
-            return 0;
+        double allOpponentProbSum = 0;
+        for (AgentID agentID : this.OpponentInstances.keySet()) {
+            System.out.println("Agent ID: " + agentID);
+            Logistic logistic = this.OpponentMaps.get(agentID);
+//            System.out.println("One-Hot " + oneHotEncoder(bid).toString() );
+            System.out.println(logistic == null);
+            double opponentProb = logistic.classify(oneHotEncoder(bid));
+            allOpponentProbSum += Math.pow(opponentProb,2);
         }
+
+//        allOpponentProb /= OpponentInstances.size();
+        double socialScore = (getUtilityWithDiscount(bid) + allOpponentProbSum)/ ( OpponentInstances.size() + 1 );
+        double individualScore = (getUtilityWithDiscount(bid) < individualUtilThreshold) ? 0 : getUtilityWithDiscount(bid);
+
+//        if ( allOpponentProbSum >= getUtility(bid) ) {
+//            return 0;
+//        }
         return beta * socialScore + (1 - beta) * individualScore;
+
     }
     
     /*
@@ -228,6 +251,12 @@ public class Team8 extends AbstractNegotiationParty {
      */
     @Override
     public Action chooseAction(List<Class<? extends Action>> possibleActions) {
+        for (AgentID agentID : this.OpponentInstances.keySet()) {
+            Logistic logistic = new Logistic(totalValues);
+            logistic.train(this.OpponentInstances.get(agentID));
+            this.OpponentMaps.put(agentID, logistic);
+        }
+
         if (lastOffer != null) {
             System.out.println("Last offer: " + lastOffer);
             System.out.println("Last offer score: " + getBidScore(lastOffer));
@@ -238,7 +267,9 @@ public class Team8 extends AbstractNegotiationParty {
             // If not, we do not accept the bid.
             
             
-            if ( getBidScore(lastOffer) >= getBidScore(findBestBid()) && getUtility(lastOffer) > utilitySpace.getReservationValue() ) {
+            if ( (  getBidScore(lastOffer) >= getBidScore(findBestBid()) )
+                    && ( (double)getUtility(lastOffer) > (double)utilitySpace.getReservationValue())
+                    || ( timeline.getTime() >= 0.96 ) ) {
                 return new Accept(getPartyId(), lastOffer);
                 // If the opponent proposes a bid that
                 // is greater than what we are eventually going to get,
@@ -246,15 +277,17 @@ public class Team8 extends AbstractNegotiationParty {
             }
         }
 
-        logReg = new Logistic(totalValues);
-        logReg.train(this.instances);
+//        logReg = new Logistic(totalValues);
+//        logReg.train(this.instances);
 
         // call a function that will iterate over all possible bids
         // and then select one with maximum score.
 
-        instances.add(new Logistic.Instance(0, oneHotEncoder(findBestBid())));
+//        instances.add(new Logistic.Instance(0, oneHotEncoder(findBestBid())));
         individualUtilThreshold = Math.max(individualUtilThreshold - individualUtilThresholdDelta, utilitySpace.getReservationValue());
+
         Bid ourBestBid = findBestBid();
+        this.lastBidOnTable = ourBestBid;
         return new Offer(getPartyId(), ourBestBid);
     }
     
@@ -264,9 +297,24 @@ public class Team8 extends AbstractNegotiationParty {
     @Override
     public void receiveMessage(AgentID sender, Action action) {
         if (action instanceof Offer) {
-            this.numRounds += 1;
+            this.OpponentInstances.putIfAbsent(sender, new ArrayList<>());
+//            this.numRounds += 1;
+
+            // The last bid was a negative sample for this opponent.
+            if ( this.lastBidOnTable != null ) {
+                this.OpponentInstances.get(sender).add(new Logistic.Instance(0, oneHotEncoder(this.lastBidOnTable)));
+            }
+
             lastOffer = ((Offer) action).getBid();
-            this.instances.add(new Logistic.Instance(1, oneHotEncoder(lastOffer)));
+            this.lastBidOnTable = lastOffer;
+
+            // Add the last offer to the list of instances
+            this.OpponentInstances.get(sender).add(new Logistic.Instance(1, oneHotEncoder(lastOffer)));
+        }
+
+        if ( action instanceof Accept ) {
+            this.numRounds += 1;
+            this.OpponentInstances.get(sender).add(new Logistic.Instance(1, oneHotEncoder(this.lastBidOnTable)));
         }
     }
 
@@ -300,16 +348,13 @@ public class Team8 extends AbstractNegotiationParty {
             }
         }
 
-//        System.out.println("-------------------------------------");
-//        for (int val : encoding) {
-//            System.out.print(val);
-//        }
-
         int[] x = new int[encoding.size()];
 
         for (int i = 0; i < encoding.size(); i++) {
             x[i] = encoding.get(i);
+            System.out.print(x[i]);
         }
+        System.out.println();
 
         return x;
     }
