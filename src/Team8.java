@@ -341,7 +341,7 @@ public class Team8 extends AbstractNegotiationParty {
      * */
     @Override
     public String getDescription() {
-        return "Linear-Linear";
+        return "Log-Log";
     }
 
     public int[] oneHotEncoder(Bid thisBid) {
