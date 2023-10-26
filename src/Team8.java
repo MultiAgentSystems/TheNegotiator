@@ -7,8 +7,10 @@ import java.util.List;
 import java.lang.Math;
 import java.util.Scanner;
 
+import genius.core.Agent;
 import genius.core.AgentID;
 import genius.core.Bid;
+import genius.core.actions.Inform;
 import genius.core.bidding.BidDetails;
 import genius.core.actions.Accept;
 import genius.core.actions.Action;
@@ -147,6 +149,10 @@ public class Team8 extends AbstractNegotiationParty {
     private HashMap<AgentID, Logistic> OpponentMaps = new HashMap<>();
 
     private HashMap<AgentID, List<Logistic.Instance>> OpponentInstances = new HashMap<>();
+
+    private HashMap<AgentID, HashMap<Bid, Integer>> OpponentPositiveBidCount = new HashMap<>();
+    private HashMap<AgentID, HashMap<Bid, Integer>> OpponentNegativeBidCount = new HashMap<>();
+
     private double individualUtilThreshold = 1, individualUtilThresholdDelta = 0.02;
 
     private Bid lastBidOnTable = null;
@@ -199,6 +205,7 @@ public class Team8 extends AbstractNegotiationParty {
 //        return beta * socialScore + (1 - beta) * individualScore;
 
         double allOpponentProbSum = 0, allOpponentProbSumSquare = 0;
+
         for (AgentID agentID : this.OpponentInstances.keySet()) {
             System.out.println("Agent ID: " + agentID);
             Logistic logistic = this.OpponentMaps.get(agentID);
@@ -249,6 +256,36 @@ public class Team8 extends AbstractNegotiationParty {
         return bestBid;
     }
 
+
+    private List<Logistic.Instance> createInstanceList( AgentID agent ){
+        List<Logistic.Instance> instanceList = new ArrayList<>();
+
+        HashMap<Bid, Integer> agentPositiveHashMap = this.OpponentPositiveBidCount.get(agent);
+
+        for ( Bid opponentSampleBid : agentPositiveHashMap.keySet() ){
+            int bidCount = agentPositiveHashMap.get(opponentSampleBid);
+            int desiredFrequency = (int)(Math.log(bidCount) + 1);
+
+            for ( int i = 0; i < desiredFrequency; i++){
+                this.OpponentInstances.get(agent).add( new Logistic.Instance(1, oneHotEncoder(opponentSampleBid)));
+            }
+        }
+
+        HashMap<Bid, Integer> agentNegativeHashMap = this.OpponentNegativeBidCount.get(agent);
+
+        for ( Bid opponentSampleBid : agentNegativeHashMap.keySet() ){
+            int bidCount = agentNegativeHashMap.get(opponentSampleBid);
+            int desiredFrequency = (int)(bidCount);
+
+            for ( int i = 0; i < desiredFrequency; i++ ){
+                this.OpponentInstances.get(agent).add(new Logistic.Instance(0, oneHotEncoder(opponentSampleBid)));
+            }
+
+        }
+
+        return instanceList;
+    }
+
     /*
      * Checks if the proposed bid has utility greater than
      * what we eventually will have at the end, and accepts
@@ -256,6 +293,8 @@ public class Team8 extends AbstractNegotiationParty {
      */
     @Override
     public Action chooseAction(List<Class<? extends Action>> possibleActions) {
+        // Creating the instances list for each agent.
+
         for (AgentID agentID : this.OpponentInstances.keySet()) {
             Logistic logistic = new Logistic(totalValues);
             logistic.train(this.OpponentInstances.get(agentID));
@@ -302,24 +341,37 @@ public class Team8 extends AbstractNegotiationParty {
     @Override
     public void receiveMessage(AgentID sender, Action action) {
         if (action instanceof Offer) {
-            this.OpponentInstances.putIfAbsent(sender, new ArrayList<>());
-//            this.numRounds += 1;
+//            this.OpponentInstances.putIfAbsent(sender, new ArrayList<>());
+//            this.OpponentPositiveInstances.putIfAbsent(sender, new ArrayList<>());
+//            this.OpponentNegativeInstances.putIfAbsent(sender, new ArrayList<>());
+
+
+            // First thing to do is to add this sample to the opponent's bid count.
+            this.OpponentPositiveBidCount.putIfAbsent(sender, new HashMap<>());
+            this.OpponentPositiveBidCount.get(sender).putIfAbsent( ((Offer)action).getBid(), 0);
+            this.OpponentPositiveBidCount.get(sender).put( ((Offer)action).getBid(), 1 + this.OpponentPositiveBidCount.get(sender).get(((Offer)action).getBid()));
 
             // The last bid was a negative sample for this opponent.
             if ( this.lastBidOnTable != null ) {
-                this.OpponentInstances.get(sender).add(new Logistic.Instance(0, oneHotEncoder(this.lastBidOnTable)));
+                this.OpponentNegativeBidCount.putIfAbsent(sender, new HashMap<>());
+                this.OpponentNegativeBidCount.get(sender).putIfAbsent( this.lastBidOnTable, 0 );
+                this.OpponentNegativeBidCount.get(sender).put( this.lastBidOnTable, 1 + this.OpponentNegativeBidCount.get(sender).get(this.lastBidOnTable));
             }
 
             lastOffer = ((Offer) action).getBid();
             this.lastBidOnTable = lastOffer;
 
             // Add the last offer to the list of instances
-            this.OpponentInstances.get(sender).add(new Logistic.Instance(1, oneHotEncoder(lastOffer)));
+//            this.OpponentInstances.get(sender).add(new Logistic.Instance(1, oneHotEncoder(lastOffer)));
         }
 
         if ( action instanceof Accept ) {
-            this.numRounds += 1;
-            this.OpponentInstances.get(sender).add(new Logistic.Instance(1, oneHotEncoder(this.lastBidOnTable)));
+//            this.numRounds += 1;
+//            this.OpponentInstances.get(sender).add(new Logistic.Instance(1, oneHotEncoder(this.lastBidOnTable)));
+
+            this.OpponentPositiveBidCount.putIfAbsent(sender, new HashMap<>());
+            this.OpponentPositiveBidCount.get(sender).putIfAbsent( this.lastBidOnTable, 0);
+            this.OpponentPositiveBidCount.get(sender).put( this.lastBidOnTable, 1 + this.OpponentPositiveBidCount.get(sender).get(this.lastBidOnTable) );
         }
     }
 
