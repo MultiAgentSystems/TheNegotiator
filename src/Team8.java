@@ -155,11 +155,8 @@ public class Team8 extends AbstractNegotiationParty {
         // This stores the constant bid that
         // our agent is going to propose.
 
-        double totalRun = info.getDeadline().getValue();
-        double expectedRun = 0.9 * totalRun;
-        
         reservationValue = info.getUtilitySpace().getReservationValueUndiscounted();
-        individualUtilThresholdDelta = (1 - 0.75 * info.getUtilitySpace().getDiscountFactor())/60;
+        individualUtilThresholdDelta = (1 - 0.75 * info.getUtilitySpace().getDiscountFactor())/64;
         // Now utility threshold contains the minimum bid our agent gets
         // as long as there isn't any disagreement.
 
@@ -237,7 +234,7 @@ public class Team8 extends AbstractNegotiationParty {
         if ( agentPositiveHashMap != null ) {
             for (Bid opponentSampleBid : agentPositiveHashMap.keySet()) {
                 int bidCount = agentPositiveHashMap.get(opponentSampleBid);
-                int desiredFrequency = (int) (bidCount );
+                int desiredFrequency = (int) (Math.log(bidCount) + 1 );
 
                 for (int i = 0; i < desiredFrequency; i++) {
                     this.OpponentInstances.get(agent).add(new Logistic.Instance(1, oneHotEncoder(opponentSampleBid)));
@@ -250,7 +247,7 @@ public class Team8 extends AbstractNegotiationParty {
         if ( agentNegativeHashMap != null ) {
             for (Bid opponentSampleBid : agentNegativeHashMap.keySet()) {
                 int bidCount = agentNegativeHashMap.get(opponentSampleBid);
-                int desiredFrequency = (int) (bidCount );
+                int desiredFrequency = (int) (Math.log(bidCount) + 1 );
 
                 for (int i = 0; i < desiredFrequency; i++) {
                     this.OpponentInstances.get(agent).add(new Logistic.Instance(0, oneHotEncoder(opponentSampleBid)));
