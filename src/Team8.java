@@ -198,19 +198,24 @@ public class Team8 extends AbstractNegotiationParty {
 //        }
 //        return beta * socialScore + (1 - beta) * individualScore;
 
-        double allOpponentProbSum = 0;
+        double allOpponentProbSum = 0, allOpponentProbSumSquare = 0;
         for (AgentID agentID : this.OpponentInstances.keySet()) {
             System.out.println("Agent ID: " + agentID);
             Logistic logistic = this.OpponentMaps.get(agentID);
 //            System.out.println("One-Hot " + oneHotEncoder(bid).toString() );
             System.out.println(logistic == null);
             double opponentProb = logistic.classify(oneHotEncoder(bid));
-            allOpponentProbSum += Math.pow(opponentProb,2);
+            allOpponentProbSum += opponentProb;
+            allOpponentProbSumSquare += Math.pow(opponentProb,2);
         }
 
 //        allOpponentProb /= OpponentInstances.size();
-        double socialScore = (getUtilityWithDiscount(bid) + allOpponentProbSum)/ ( OpponentInstances.size() + 1 );
-        double individualScore = (getUtilityWithDiscount(bid) < individualUtilThreshold) ? 0 : getUtilityWithDiscount(bid);
+        if ( OpponentInstances.size() != 0 ) {
+            allOpponentProbSum /= (OpponentInstances.size());
+        }
+
+        double socialScore = (getUtilityWithDiscount(bid) + allOpponentProbSumSquare)/ ( OpponentInstances.size() + 1 );
+        double individualScore = (getUtilityWithDiscount(bid) < individualUtilThreshold) ? 0 : allOpponentProbSum;
 
 //        if ( allOpponentProbSum >= getUtility(bid) ) {
 //            return 0;
