@@ -139,11 +139,13 @@ public class Team8 extends AbstractNegotiationParty {
     private final HashMap<AgentID, List<Logistic.Instance>> OpponentInstances = new HashMap<>();
 
     private final HashMap<AgentID, HashMap<Bid, Integer>> OpponentPositiveBidCount = new HashMap<>();
+
     private final HashMap<AgentID, HashMap<Bid, Integer>> OpponentNegativeBidCount = new HashMap<>();
 
     private double individualUtilThreshold = 1, individualUtilThresholdDelta = 0.02;
 
     private Bid lastBidOnTable = null;
+
     int totalValues = 0;
 
     @Override
@@ -166,7 +168,6 @@ public class Team8 extends AbstractNegotiationParty {
             IssueDiscrete issue = (IssueDiscrete) rawIssue;
             totalValues += issue.getNumberOfValues();
         }
-
     }
 
     /*
@@ -283,15 +284,17 @@ public class Team8 extends AbstractNegotiationParty {
             System.out.println("Last offer score: " + getBidScore(lastOffer));
             System.out.println("Best bid: " + findBestBid());
             System.out.println("Best bid score: " + getBidScore(findBestBid()));
-            
+
+            // If the opponent proposes a bid that
+            // is greater than what we are eventually going to get,
+            // we accept.
+            // The last condition ensures that we accept the last bid.
+
             if ( (  getUtilityWithDiscount(lastOffer) >= getUtilityWithDiscount(findBestBid()) )
                     && ( getUtility(lastOffer) > utilitySpace.getReservationValue())
                     || ( timeline.getTime() >= 0.96 ) ) {
                 return new Accept(getPartyId(), lastOffer);
-                // If the opponent proposes a bid that
-                // is greater than what we are eventually going to get,
-                // we accept.
-                // The last condition ensures that we accept the last bid.
+
             }
         }
 
@@ -341,7 +344,7 @@ public class Team8 extends AbstractNegotiationParty {
      * */
     @Override
     public String getDescription() {
-        return "Log-Log";
+        return "Refuses to elaborate further.";
     }
 
     public int[] oneHotEncoder(Bid thisBid) {
